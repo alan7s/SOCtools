@@ -1,8 +1,8 @@
 import requests
 import shodan
 import argparse
-
-# Version v0.1 by alan7s
+from datetime import datetime, timezone, timedelta
+# Version v0.2 by alan7s
 
 def vtScan(ip):
     url = f'https://www.virustotal.com/api/v3/ip_addresses/{ip}'
@@ -80,6 +80,12 @@ def cortexCheck(ip):
     print("Cortex endpoint: ")
     try:
         endpoint = cortex['reply']['endpoints'][0]
+        lastseen = endpoint['last_seen']
+        date = timestamp = lastseen / 1000.0
+        date = datetime.fromtimestamp(timestamp, timezone.utc)
+        date = date - timedelta(hours=3)
+        format_date = '%b %d, %Y, %I:%M %p'
+        lastseen = date.strftime(format_date)
         print(f'. Name: {endpoint['endpoint_name']}')
         print(f'. Type: {endpoint['endpoint_type']}')
         print(f'. Status: {endpoint['endpoint_status']}')
@@ -87,12 +93,14 @@ def cortexCheck(ip):
         print(f'. OS: {endpoint['os_type']}')
         print(f'. Agent version: {endpoint['endpoint_version']}')
         print(f'. IP address: {endpoint['ip']}')
-        print(f'. Last seen: {endpoint['last_seen']}')
+        print(f'. Last seen: {lastseen}')
+        print()
+        print(f'Machine {endpoint['endpoint_name']} with Cortex {endpoint['endpoint_status']} last seen in {lastseen}')
     except IndexError:
-        print(f"IP não encontrado")
+        print(f'{ip} not found')
 
 def main():
-    parser = argparse.ArgumentParser(description='Scan IP address using Shodan and VirusTotal.')
+    parser = argparse.ArgumentParser(description='Scan IP address using VirusTotal, Shodan and Cortex XDR.')
     parser.add_argument('-r', '--remote', dest='remote_ip', required=False, help='Remote IP address to scan')
     parser.add_argument('-l', '--local', dest='local_ip', required=False, help='Local IP address to check')
 
