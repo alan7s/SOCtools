@@ -2,7 +2,8 @@ import requests
 import shodan
 import argparse
 from datetime import datetime, timezone, timedelta
-# Version v0.2 by alan7s
+import ipaddress
+# Version v0.3 by alan7s
 
 def vtScan(ip):
     url = f'https://www.virustotal.com/api/v3/ip_addresses/{ip}'
@@ -99,10 +100,19 @@ def cortexCheck(ip):
     except IndexError:
         print(f'{ip} not found')
 
+def cidrexpander(ip):
+    ip_list = []
+    for i in ipaddress.IPv4Network(ip):
+        ip_list.append(str(i))
+    with open(r'IPcidrExpander.txt', 'w') as fp:
+        fp.write('[' + ','.join(ip_list) + ']')
+    print('File IPcidrExpander.txt saved in this directory')
+
 def main():
     parser = argparse.ArgumentParser(description='Scan IP address using VirusTotal, Shodan and Cortex XDR.')
     parser.add_argument('-r', '--remote', dest='remote_ip', required=False, help='Remote IP address to scan')
     parser.add_argument('-l', '--local', dest='local_ip', required=False, help='Local IP address to check')
+    parser.add_argument('-e', '--expander', dest='expander_ip', required=False, help='IP CIDR expander')
 
     args = parser.parse_args()
     print("================")
@@ -114,6 +124,8 @@ def main():
         shodanScan(args.remote_ip)
     if args.local_ip:
         cortexCheck(args.local_ip)
+    if args.expander_ip:
+        cidrexpander(args.expander_ip)
 
 if __name__ == "__main__":
     main()
