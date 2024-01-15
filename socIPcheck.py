@@ -3,10 +3,13 @@ import shodan
 import argparse
 from datetime import datetime, timezone, timedelta
 import ipaddress
-# Version v0.3 by alan7s
+# Version v0.4 by alan7s
 
-def vtScan(ip):
-    url = f'https://www.virustotal.com/api/v3/ip_addresses/{ip}'
+def vtScan(ip,inpt):
+    if inpt:
+        url = f'https://www.virustotal.com/api/v3/ip_addresses/{ip}'
+    else:
+        url = f'https://www.virustotal.com/api/v3/domains/{ip}'
 
     headers = {
         "accept": "application/json",
@@ -113,6 +116,7 @@ def main():
     parser.add_argument('-r', '--remote', dest='remote_ip', required=False, help='Remote IP address to scan')
     parser.add_argument('-l', '--local', dest='local_ip', required=False, help='Local IP address to check')
     parser.add_argument('-e', '--expander', dest='expander_ip', required=False, help='IP CIDR expander')
+    parser.add_argument('-d', '--domain', dest='remote_domain', required=False, help='Domain address to scan')
 
     args = parser.parse_args()
     print("================")
@@ -120,12 +124,14 @@ def main():
     print("================")
     
     if args.remote_ip:
-        vtScan(args.remote_ip)
+        vtScan(args.remote_ip, True)
         shodanScan(args.remote_ip)
     if args.local_ip:
         cortexCheck(args.local_ip)
     if args.expander_ip:
         cidrexpander(args.expander_ip)
+    if args.remote_domain:
+        vtScan(args.remote_domain, False)
 
 if __name__ == "__main__":
     main()
