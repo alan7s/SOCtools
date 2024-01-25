@@ -2,10 +2,11 @@ import requests
 import shodan
 import argparse
 from datetime import datetime, timezone, timedelta
-import ipaddress
-# Version v0.4 by alan7s
+import os
+from dotenv import load_dotenv
+# Version v0.5 by alan7s
 
-def vtScan(ip,inpt):
+def vtScan(ip,inpt, api):
     if inpt:
         url = f'https://www.virustotal.com/api/v3/ip_addresses/{ip}'
     else:
@@ -13,7 +14,7 @@ def vtScan(ip,inpt):
 
     headers = {
         "accept": "application/json",
-        "x-apikey": "YOUR_API_KEY"  # Virustotal API KEY
+        "x-apikey": api  # Virustotal API KEY
     }
 
     response = requests.get(url, headers=headers)
@@ -32,8 +33,8 @@ def vtScan(ip,inpt):
     else:
          print(f"Failed to fetch data. Status Code: {response.status_code}")
 
-def shodanScan(target):
-    api_key = 'YOUR_API_KEY' #Shodan API KEY
+def shodanScan(target, api):
+    api_key = api #Shodan API KEY
     api = shodan.Shodan(api_key)
     print()
     print("Shodan scan: ")
@@ -63,10 +64,10 @@ def shodanScan(target):
     except shodan.APIError as e:
        print(f"Error: {e}")
 
-def cortexCheck(ip):
+def cortexCheck(ip, api, id, fqdn):
     headers = {
-        "x-xdr-auth-id": str(0), # Cortex API KEY ID
-        "Authorization": "YOUR_API_KEY" # Cortex API KEY
+        "x-xdr-auth-id": str(id), # Cortex API KEY ID
+        "Authorization": api # Cortex API KEY
     }
     parameters = { "request_data": {
         "filters": [
@@ -77,7 +78,7 @@ def cortexCheck(ip):
             }
         ]
     } }
-    res = requests.post(url="https://api-domain.xdr.us.paloaltonetworks.com/public_api/v1/endpoints/get_endpoint/", # Set domain name
+    res = requests.post(url=f'https://api-{fqdn}.xdr.us.paloaltonetworks.com/public_api/v1/endpoints/get_endpoint/', # Set domain name
 						headers=headers,
 						json=parameters)
     cortex = res.json()
@@ -103,35 +104,39 @@ def cortexCheck(ip):
     except IndexError:
         print(f'{ip} not found')
 
-def cidrexpander(ip):
-    ip_list = []
-    for i in ipaddress.IPv4Network(ip):
-        ip_list.append(str(i))
-    with open(r'IPcidrExpander.txt', 'w') as fp:
-        fp.write('[' + ','.join(ip_list) + ']')
-    print('File IPcidrExpander.txt saved in this directory')
-
 def main():
     parser = argparse.ArgumentParser(description='Scan IP address using VirusTotal, Shodan and Cortex XDR.')
     parser.add_argument('-r', '--remote', dest='remote_ip', required=False, help='Remote IP address to scan')
     parser.add_argument('-l', '--local', dest='local_ip', required=False, help='Local IP address to check')
-    parser.add_argument('-e', '--expander', dest='expander_ip', required=False, help='IP CIDR expander')
-    parser.add_argument('-d', '--domain', dest='remote_domain', required=False, help='Domain address to scan')
+    parser.add_argument('-d', '--domain', dest='domain_scan', required=False, help='Domain address to scan')
 
     args = parser.parse_args()
     print("================")
     print("   socIPcheck   ")
     print("================")
-    
+
+    # Carregando as variáveis de ambiente do arquivo .env
+    load_dotenv(override=True)
+    '''.env file content example:
+    virustotal_api = "API_KEY"
+    shodan_api = "API_KEY"
+    cortex_api = "API_KEY"
+    cortex_id = "ID"
+    cortex_fqdn = "fqdn"
+    '''
+    virustotal_api = os.getenv("virustotal_api")
+    shodan_api = os.getenv("shodan_api")
+    cortex_api = os.getenv("cortex_api")
+    cortex_id = os.getenv("cortex_id")
+    cortex_fqdn = os.getenv("cortex_fqdn")
+
     if args.remote_ip:
-        vtScan(args.remote_ip, True)
-        shodanScan(args.remote_ip)
+        vtScan(args.remote_ip, True, virustotal_api)
+        shodanScan(args.remote_ip, shodan_api)
     if args.local_ip:
-        cortexCheck(args.local_ip)
-    if args.expander_ip:
-        cidrexpander(args.expander_ip)
-    if args.remote_domain:
-        vtScan(args.remote_domain, False)
+        cortexCheck(args.local_ip, cortex_api, cortex_id, cortex_fqdn)
+    if args.domain_scan:
+        vtScan(args.domain_scan, False, virustotal_api)
 
 if __name__ == "__main__":
     main()
