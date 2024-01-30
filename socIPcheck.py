@@ -4,7 +4,7 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-# Version v0.5 by alan7s
+# Version v0.6 by alan7s
 
 def vtScan(ip,inpt, api):
     if inpt:
@@ -28,8 +28,12 @@ def vtScan(ip,inpt, api):
         
         # Get malicious stats x/
         malicious = last_analysis_stats['malicious']
-        
-        print(f'. {malicious}/{total} security vendors flagged {ip}') # VirusTotal scan: x/y
+        if inpt:
+            print(f'. {malicious}/{total} security vendors flagged {ip}. See https://www.virustotal.com/gui/ip-address/{ip}') # VirusTotal scan: x/y
+        else:
+            print(f'. {malicious}/{total} security vendors flagged {ip}. See https://www.virustotal.com/gui/domain/{ip}')
+            
+
     else:
          print(f"Failed to fetch data. Status Code: {response.status_code}")
 
@@ -60,6 +64,7 @@ def shodanScan(target, api):
             print(f". Vulnerabilities: {', '.join(map(str, vulnerabilities))}")
         else:
             print(". Vulnerabilities: N/A")
+        print(f'. Source https://www.shodan.io/host/{target}')
         print()
     except shodan.APIError as e:
        print(f"Error: {e}")
