@@ -4,7 +4,7 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-# Version v0.6 by alan7s
+# Version v0.7 by alan7s
 
 def vtScan(ip,inpt, api):
     if inpt:
@@ -110,38 +110,41 @@ def cortexCheck(ip, api, id, fqdn):
         print(f'{ip} not found')
 
 def main():
-    parser = argparse.ArgumentParser(description='Scan IP address using VirusTotal, Shodan and Cortex XDR.')
-    parser.add_argument('-r', '--remote', dest='remote_ip', required=False, help='Remote IP address to scan')
-    parser.add_argument('-l', '--local', dest='local_ip', required=False, help='Local IP address to check')
-    parser.add_argument('-d', '--domain', dest='domain_scan', required=False, help='Domain address to scan')
+    try:
+        parser = argparse.ArgumentParser(description='Scan IP address using VirusTotal, Shodan and Cortex XDR.')
+        parser.add_argument('-r', '--remote', dest='remote_ip', required=False, help='Remote IP address to scan')
+        parser.add_argument('-l', '--local', dest='local_ip', required=False, help='Local IP address to check')
+        parser.add_argument('-d', '--domain', dest='domain_scan', required=False, help='Domain address to scan')
 
-    args = parser.parse_args()
-    print("================")
-    print("   socIPcheck   ")
-    print("================")
+        args = parser.parse_args()
+        print("================")
+        print("   socIPcheck   ")
+        print("================")
 
-    # Carregando as variáveis de ambiente do arquivo .env
-    load_dotenv(override=True)
-    '''.env file content example:
-    virustotal_api = "API_KEY"
-    shodan_api = "API_KEY"
-    cortex_api = "API_KEY"
-    cortex_id = "ID"
-    cortex_fqdn = "fqdn"
-    '''
-    virustotal_api = os.getenv("virustotal_api")
-    shodan_api = os.getenv("shodan_api")
-    cortex_api = os.getenv("cortex_api")
-    cortex_id = os.getenv("cortex_id")
-    cortex_fqdn = os.getenv("cortex_fqdn")
+        # Carregando as variáveis de ambiente do arquivo .env
+        load_dotenv(override=True)
+        '''.env file content example:
+        virustotal_api = "API_KEY"
+        shodan_api = "API_KEY"
+        cortex_api = "API_KEY"
+        cortex_id = "ID"
+        cortex_fqdn = "fqdn"
+        '''
+        virustotal_api = os.getenv("virustotal_api")
+        shodan_api = os.getenv("shodan_api")
+        cortex_api = os.getenv("cortex_api")
+        cortex_id = os.getenv("cortex_id")
+        cortex_fqdn = os.getenv("cortex_fqdn")
 
-    if args.remote_ip:
-        vtScan(args.remote_ip, True, virustotal_api)
-        shodanScan(args.remote_ip, shodan_api)
-    if args.local_ip:
-        cortexCheck(args.local_ip, cortex_api, cortex_id, cortex_fqdn)
-    if args.domain_scan:
-        vtScan(args.domain_scan, False, virustotal_api)
+        if args.remote_ip:
+            vtScan(args.remote_ip, True, virustotal_api)
+            shodanScan(args.remote_ip, shodan_api)
+        if args.local_ip:
+            cortexCheck(args.local_ip, cortex_api, cortex_id, cortex_fqdn)
+        if args.domain_scan:
+            vtScan(args.domain_scan, False, virustotal_api)
+    except:
+        print('An exception occurred')
 
 if __name__ == "__main__":
     main()
