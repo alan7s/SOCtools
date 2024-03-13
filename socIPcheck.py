@@ -4,7 +4,7 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-# Version v0.7 by alan7s
+# Version v0.8 by alan7s
 
 def vtScan(ip,inpt, api):
     if inpt:
@@ -115,6 +115,7 @@ def main():
         parser.add_argument('-r', '--remote', dest='remote_ip', required=False, help='Remote IP address to scan')
         parser.add_argument('-l', '--local', dest='local_ip', required=False, help='Local IP address to check')
         parser.add_argument('-d', '--domain', dest='domain_scan', required=False, help='Domain address to scan')
+        parser.add_argument('-t', '--tenant', dest='tenant', required=False, help='API tenant')
 
         args = parser.parse_args()
         print("================")
@@ -123,24 +124,27 @@ def main():
 
         # Carregando as variáveis de ambiente do arquivo .env
         load_dotenv(override=True)
-        '''.env file content example:
-        virustotal_api = "API_KEY"
-        shodan_api = "API_KEY"
-        cortex_api = "API_KEY"
-        cortex_id = "ID"
-        cortex_fqdn = "fqdn"
-        '''
+        #.env file content example:
+        #   virustotal_api = "API_KEY"
+        #   shodan_api = "API_KEY"
+        #   cortex_api_tenant = "API_KEY"
+        #   cortex_id_tenant = "ID"
+        #   cortex_fqdn_tenant = "fqdn"
+
         virustotal_api = os.getenv("virustotal_api")
         shodan_api = os.getenv("shodan_api")
-        cortex_api = os.getenv("cortex_api")
-        cortex_id = os.getenv("cortex_id")
-        cortex_fqdn = os.getenv("cortex_fqdn")
 
         if args.remote_ip:
             vtScan(args.remote_ip, True, virustotal_api)
             shodanScan(args.remote_ip, shodan_api)
         if args.local_ip:
-            cortexCheck(args.local_ip, cortex_api, cortex_id, cortex_fqdn)
+            if args.tenant:
+                cortex_api = os.getenv(f"cortex_api_{args.tenant}")
+                cortex_id = os.getenv(f"cortex_id_{args.tenant}")
+                cortex_fqdn = os.getenv(f"cortex_fqdn_{args.tenant}")
+                cortexCheck(args.local_ip, cortex_api, cortex_id, cortex_fqdn)
+            else:
+                print("You need specified a tenant")
         if args.domain_scan:
             vtScan(args.domain_scan, False, virustotal_api)
     except:
