@@ -4,7 +4,7 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-# Version v0.8 by alan7s
+# Version v0.9 by alan7s
 
 def vtScan(ip,inpt, api):
     if inpt:
@@ -96,18 +96,38 @@ def cortexCheck(ip, api, id, fqdn):
         date = date - timedelta(hours=3)
         format_date = '%b %d, %Y, %I:%M %p'
         lastseen = date.strftime(format_date)
-        print(f'. Name: {endpoint['endpoint_name']}')
-        print(f'. Type: {endpoint['endpoint_type']}')
-        print(f'. Status: {endpoint['endpoint_status']}')
-        print(f'. User: {endpoint['users']}')
-        print(f'. OS: {endpoint['os_type']}')
-        print(f'. Agent version: {endpoint['endpoint_version']}')
-        print(f'. IP address: {endpoint['ip']}')
-        print(f'. Last seen: {lastseen}')
+        print(f". Name: {endpoint['endpoint_name']}")
+        print(f". Type: {endpoint['endpoint_type']}")
+        print(f". Status: {endpoint['endpoint_status']}")
+        print(f". User: {endpoint['users']}")
+        print(f". OS: {endpoint['os_type']}")
+        print(f". Agent version: {endpoint['endpoint_version']}")
+        print(f". IP address: {endpoint['ip']}")
+        print(f". Last seen: {lastseen}")
         print()
-        print(f'Machine {endpoint['endpoint_name']} with Cortex {endpoint['endpoint_status']} last seen in {lastseen}')
+        print(f"Machine {endpoint['endpoint_name']} with Cortex {endpoint['endpoint_status']} last seen in {lastseen}")
     except IndexError:
-        print(f'{ip} not found')
+        print(f"{ip} not found")
+
+def cortexMalwareScan(api, id, fqdn, ip):
+    headers = {
+        "x-xdr-auth-id": str(id), # Cortex API KEY ID --> Role: Privileged Responder | Security Level: Standard
+        "Authorization": api, # Cortex API KEY
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    payload = { "request_data": {
+        "filters": [
+            {
+                "field": "ip_list",
+                "value": [ip],
+                "operator": "in"
+            }
+        ]
+    } }
+    url=f"https://api-{fqdn}.xdr.us.paloaltonetworks.com/public_api/v1/endpoints/scan"
+    response = requests.post(url, json=payload, headers=headers)
+    print(response.json())
 
 def main():
     try:
@@ -116,8 +136,10 @@ def main():
         parser.add_argument('-l', '--local', dest='local_ip', required=False, help='Local IP address to check')
         parser.add_argument('-d', '--domain', dest='domain_scan', required=False, help='Domain address to scan')
         parser.add_argument('-t', '--tenant', dest='tenant', required=False, help='API tenant')
-
+        parser.add_argument('-s', '--scan', dest='scan_ip', required=False, action='store_true', help='Initiate local malware scan')
+    
         args = parser.parse_args()
+
         print("================")
         print("   socIPcheck   ")
         print("================")
@@ -143,12 +165,14 @@ def main():
                 cortex_id = os.getenv(f"cortex_id_{args.tenant}")
                 cortex_fqdn = os.getenv(f"cortex_fqdn_{args.tenant}")
                 cortexCheck(args.local_ip, cortex_api, cortex_id, cortex_fqdn)
+                if args.scan_ip:
+                    cortexMalwareScan(cortex_api, cortex_id, cortex_fqdn, args.local_ip)
             else:
                 print("You need specified a tenant")
         if args.domain_scan:
             vtScan(args.domain_scan, False, virustotal_api)
     except:
-        print('An exception occurred')
+        print("An exception occurred")
 
 if __name__ == "__main__":
     main()
