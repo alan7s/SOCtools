@@ -5,7 +5,7 @@ import argparse
 import pandas as pd
 
 # Upload LUMU IOCs to Cortex XDR Blocklist
-# Version v0.4 by alan7s
+# Version v0.5 by alan7s
 
 def cortexCheck(api, id, fqdn, blocklist, comment):
     headers = {
@@ -19,6 +19,26 @@ def cortexCheck(api, id, fqdn, blocklist, comment):
         "comment": comment,
     } }
     url=f"https://api-{fqdn}.xdr.us.paloaltonetworks.com/public_api/v1/hash_exceptions/blocklist"
+    response = requests.post(url, json=payload, headers=headers)
+    print(response.json())
+
+def cortexMalwareScan(api, id, fqdn, ip):
+    headers = {
+        "x-xdr-auth-id": str(id), # Cortex API KEY ID --> Role: Responder | Security Level: Standard
+        "Authorization": api, # Cortex API KEY
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    payload = { "request_data": {
+        "filters": [
+            {
+                "field": "ip_list",
+                "value": [ip],
+                "operator": "in"
+            }
+        ]
+    } }
+    url=f"https://api-{fqdn}.xdr.us.paloaltonetworks.com/public_api/v1/endpoints/scan"
     response = requests.post(url, json=payload, headers=headers)
     print(response.json())
 
@@ -58,10 +78,12 @@ def main():
     parser = argparse.ArgumentParser(description='Load LUMU incident related files hash into Cortex XDR.')
     parser.add_argument('-t', '--tenant', dest='tenant', required=True, help='Cortex and Lumu API tenant')
     parser.add_argument('-i', '--incident', dest='incident', required=False, help='Incident ID')
+    parser.add_argument('-s', '--scan', dest='scan_ip', required=False, help='Initiate Malware Scan for an IP')
 
     args = parser.parse_args()
     tenant = args.tenant
     idLUMU = args.incident
+    ipSCAN = args.scan_ip
 
     cortex_api = os.getenv(f"cortex_responder_api_{tenant}")
     cortex_id = os.getenv(f"cortex_responder_id_{tenant}")
@@ -72,15 +94,21 @@ def main():
         related_files = getLumuFiles(idLUMU,lumu_api)
     else:
         df = pd.read_csv('lumuiocs.csv') #set your lumu.csv path
-        related_files = df[' sha256'].tolist()
+        try:
+            related_files = df[' sha256'].tolist()
+        except:
+            related_files = []
 
     listofblocklist = list(chunks(related_files, 100))
     if len(listofblocklist) > 0:
         print(f'IOCs: {len(related_files)}')
         print(f'Sublistas: {len(listofblocklist)}')
-        comment = input("Add comment: ")
+        comment = input("Add general description: ")
+        comment = "LUMU IOC "+ comment
         for i in range(len(listofblocklist)):      
             cortexCheck(cortex_api, cortex_id, cortex_fqdn, listofblocklist[i], comment)
+    if ipSCAN:
+        cortexMalwareScan(cortex_api, cortex_id, cortex_fqdn, ipSCAN)
 
 if __name__ == "__main__":
     main()
