@@ -5,8 +5,11 @@ from urllib.parse import quote
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timezone, timedelta
+import ipaddress
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Version v0.1 by alan7s
+# Version v0.3 by alan7s
 
 def cortexCheck(ip, api, id, fqdn):
     headers = {
@@ -26,7 +29,6 @@ def cortexCheck(ip, api, id, fqdn):
 						headers=headers,
 						json=parameters)
     cortex = res.json()
-    print("Cortex endpoint: ")
     try:
         endpoint = cortex['reply']['endpoints'][0]
         lastseen = endpoint['last_seen']
@@ -45,26 +47,32 @@ def add_comment(qradar_url_base,qradar_header,offense_id,comment):
     URL = qradar_url_base + '/siem/offenses/' + str(offense_id) + f'/notes?note_text={comment}'
     response = requests.post(URL, headers=qradar_header, verify=False)
     if response.status_code == 201:
-        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + ' Offense ID: ' + str(offense_id) + ' comment added' + '\n')
+        print('Offense ID: ' + str(offense_id) + ' comment added')
         return response.json()
     else:
-        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + ' Error at add comment ' + offense_id + '. Error: ' + str(response.status_code) + '\n')
+        print('Error at add comment ' + str(offense_id) + '. Error: ' + str(response.status_code))
         return None
 
 def get_offenses(qradar_url,qradar_header):
     response = requests.get(qradar_url, headers=qradar_header, verify=False)
     if response.status_code == 200:
-        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + ' success to get offenses\n')
+        print('Success to get offenses')
         return response.json()
     else:
-        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + ' Error: ' + str(response.status_code) + '\n')
+        print('Error: ' + str(response.status_code))
         return None
+    
+def notes_len(qradar_url_base,qradar_header, id):
+    qradar_url = qradar_url_base + f'/siem/offenses/{id}/notes'
+    response = requests.get(qradar_url, headers=qradar_header, verify=False).json()
+    return len(response)
     
 def main():
     load_dotenv(override=True)
-    cortex_api = os.getenv("cortex_api")
-    cortex_id = os.getenv("cortex_id")
-    cortex_fqdn = os.getenv("cortex_fqdn")
+    tenant = input("Tenant: ")
+    cortex_api = os.getenv(f"cortex_api_{tenant}")
+    cortex_id = os.getenv(f"cortex_id_{tenant}")
+    cortex_fqdn = os.getenv(f"cortex_fqdn_{tenant}")
     qradar_sec_token = os.getenv("qradar_sec_token")
     qradar_url_base = os.getenv("qradar_url_base")
 
@@ -78,12 +86,19 @@ def main():
 
     offenses = get_offenses(qradar_url,qradar_header)
     offenses = json_normalize(offenses)
-
+    print("All open offenses:")
+    #for i in range(len(offenses)):
+    #    print(offenses.iloc[i]['id'])
+    print(offenses['offense_source'])
+    
     for i in range(len(offenses)):
         if offenses.iloc[i]['status'] == 'OPEN':
-            #print(cortexCheck(offenses.iloc[i]['offense_source'], cortex_api, cortex_id, cortex_fqdn))
-            #print(offenses.iloc[i]['id'])
-            add_comment(qradar_url_base,qradar_header,offenses.iloc[i]['id'],cortexCheck(offenses.iloc[i]['offense_source'], cortex_api, cortex_id, cortex_fqdn))
+            ip = offenses.iloc[i]['offense_source']
+            try:
+                if notes_len(qradar_url_base,qradar_header, offenses.iloc[i]['id']) == 0 and ipaddress.ip_address(ip).is_private:
+                    add_comment(qradar_url_base,qradar_header,offenses.iloc[i]['id'],cortexCheck(ip, cortex_api, cortex_id, cortex_fqdn))
+            except ValueError:
+                print(f"{ip} não representa um endereço IP válido.")
 
 if __name__ == "__main__":
     main()
