@@ -4,7 +4,7 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-# Version v0.9 by alan7s
+# Version v1.0 by alan7s
 
 def vtScan(ip,inpt, api):
     if inpt:
@@ -166,7 +166,9 @@ def main():
                 cortex_fqdn = os.getenv(f"cortex_fqdn_{args.tenant}")
                 cortexCheck(args.local_ip, cortex_api, cortex_id, cortex_fqdn)
                 if args.scan_ip:
-                    cortexMalwareScan(cortex_api, cortex_id, cortex_fqdn, args.local_ip)
+                    cortex_responder_id =  os.getenv(f"cortex_responder_id_{args.tenant}")
+                    cortex_responder_api =  os.getenv(f"cortex_responder_api_{args.tenant}")
+                    cortexMalwareScan(cortex_responder_api, cortex_responder_id, cortex_fqdn, args.local_ip)
             else:
                 print("You need specified a tenant")
         if args.domain_scan:
