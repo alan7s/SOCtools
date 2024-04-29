@@ -4,19 +4,36 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-# Version v1.0 by alan7s
+# Version v1.1 by alan7s
+
+def abuseIPDB(ip, api_key):
+    url = f'https://api.abuseipdb.com/api/v2/check?ipAddress={ip}&maxAgeInDays=90'
+    headers = {
+        "Accept": "application/json",
+        "Key": api_key  # AbuseIPDB API Key
+    }
+    response = requests.get(url, headers=headers)
+    print("AbuseIPDB scan:")
+    if response.status_code == 200:
+        data = response.json()
+        abuse_confidence_score = data['data']['abuseConfidenceScore']
+        if abuse_confidence_score > 0:
+            print(f'. {ip} has an abuse confidence score of {abuse_confidence_score}/100. See https://www.abuseipdb.com/check/{ip}')
+        else:
+            print(f'. No abusive activity found for {ip}')
+    else:
+        print(f"Failed to fetch data. Status Code: {response.status_code}")
+    print()
 
 def vtScan(ip,inpt, api):
     if inpt:
         url = f'https://www.virustotal.com/api/v3/ip_addresses/{ip}'
     else:
         url = f'https://www.virustotal.com/api/v3/domains/{ip}'
-
     headers = {
         "accept": "application/json",
         "x-apikey": api  # Virustotal API KEY
     }
-
     response = requests.get(url, headers=headers)
     print("VirusTotal scan:")
     if response.status_code == 200:
@@ -32,42 +49,36 @@ def vtScan(ip,inpt, api):
             print(f'. {malicious}/{total} security vendors flagged {ip}. See https://www.virustotal.com/gui/ip-address/{ip}') # VirusTotal scan: x/y
         else:
             print(f'. {malicious}/{total} security vendors flagged {ip}. See https://www.virustotal.com/gui/domain/{ip}')
-            
-
     else:
          print(f"Failed to fetch data. Status Code: {response.status_code}")
+    print()
 
 def shodanScan(target, api):
     api_key = api #Shodan API KEY
     api = shodan.Shodan(api_key)
-    print()
     print("Shodan scan: ")
     try:
         results = api.host(target)
-
         print(f". Organization: {results.get('org', 'N/A')}")
-
         domains = results.get('domains', [])
         if domains:
             print(f". Domains: {', '.join(map(str, domains))}")
         else:
             print(". Domains: N/A")
-
         ports = results.get('ports', [])
         if ports:
             print(f". Ports: {', '.join(map(str, ports))}")
         else:
             print(". Ports: N/A")
-
         vulnerabilities = results.get('vulns', [])
         if vulnerabilities:
             print(f". Vulnerabilities: {', '.join(map(str, vulnerabilities))}")
         else:
             print(". Vulnerabilities: N/A")
         print(f'. Source https://www.shodan.io/host/{target}')
-        print()
     except shodan.APIError as e:
        print(f"Error: {e}")
+    print()
 
 def cortexCheck(ip, api, id, fqdn):
     headers = {
@@ -155,8 +166,10 @@ def main():
 
         virustotal_api = os.getenv("virustotal_api")
         shodan_api = os.getenv("shodan_api")
+        abuseipdb_api = os.getenv("abuseipdb")
 
         if args.remote_ip:
+            abuseIPDB(args.remote_ip, abuseipdb_api)
             vtScan(args.remote_ip, True, virustotal_api)
             shodanScan(args.remote_ip, shodan_api)
         if args.local_ip:
