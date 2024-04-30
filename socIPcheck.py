@@ -4,7 +4,7 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-# Version v1.1 by alan7s
+# Version v1.2 by alan7s
 
 def abuseIPDB(ip, api_key):
     url = f'https://api.abuseipdb.com/api/v2/check?ipAddress={ip}&maxAgeInDays=90'
@@ -20,7 +20,7 @@ def abuseIPDB(ip, api_key):
         if abuse_confidence_score > 0:
             print(f'. {ip} has an abuse confidence score of {abuse_confidence_score}/100. See https://www.abuseipdb.com/check/{ip}')
         else:
-            print(f'. No abusive activity found for {ip}')
+            print(f'. No abusive activity found for {ip}. See https://www.abuseipdb.com/check/{ip}')
     else:
         print(f"Failed to fetch data. Status Code: {response.status_code}")
     print()
@@ -160,13 +160,14 @@ def main():
         #.env file content example:
         #   virustotal_api = "API_KEY"
         #   shodan_api = "API_KEY"
+        #   abuseipdb_api = "API_KEY"
         #   cortex_api_tenant = "API_KEY"
         #   cortex_id_tenant = "ID"
         #   cortex_fqdn_tenant = "fqdn"
 
         virustotal_api = os.getenv("virustotal_api")
         shodan_api = os.getenv("shodan_api")
-        abuseipdb_api = os.getenv("abuseipdb")
+        abuseipdb_api = os.getenv("abuseipdb_api")
 
         if args.remote_ip:
             abuseIPDB(args.remote_ip, abuseipdb_api)
