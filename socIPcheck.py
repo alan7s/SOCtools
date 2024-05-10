@@ -4,7 +4,9 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
-# Version v1.2 by alan7s
+import time
+import re
+# Version v1.3 by alan7s
 
 def abuseIPDB(ip, api_key):
     url = f'https://api.abuseipdb.com/api/v2/check?ipAddress={ip}&maxAgeInDays=90'
@@ -148,6 +150,7 @@ def main():
         parser.add_argument('-d', '--domain', dest='domain_scan', required=False, help='Domain address to scan')
         parser.add_argument('-t', '--tenant', dest='tenant', required=False, help='API tenant')
         parser.add_argument('-s', '--scan', dest='scan_ip', required=False, action='store_true', help='Initiate local malware scan')
+        parser.add_argument('-b', '--bulk', dest='bulk_scan', required=False, action='store_true', help='Bulk scan')
     
         args = parser.parse_args()
 
@@ -169,6 +172,26 @@ def main():
         shodan_api = os.getenv("shodan_api")
         abuseipdb_api = os.getenv("abuseipdb_api")
 
+        ip_pattern = r'^(?:(?:25[0-5]|2[0-4]\d|1?\d{1,2})(?:\.(?!$)|$)){4}$'
+
+        if args.bulk_scan:
+            bulk = []
+            print("Insert a domain or remote IP (or press Enter to leave): ")
+            while True:
+                data = input()
+                if data:
+                    bulk.append(data)
+                else:
+                    break
+            print(bulk)
+            for data in bulk:
+                if re.match(ip_pattern, data):
+                    vtScan(data, True, virustotal_api)
+                    abuseIPDB(data, abuseipdb_api)
+                    shodanScan(data, shodan_api)
+                else:
+                    vtScan(data,False,virustotal_api)
+                time.sleep(15) #api limit 4 request per minute
         if args.remote_ip:
             abuseIPDB(args.remote_ip, abuseipdb_api)
             vtScan(args.remote_ip, True, virustotal_api)
