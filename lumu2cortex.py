@@ -5,7 +5,7 @@ import argparse
 import pandas as pd
 
 # Upload LUMU IOCs to Cortex XDR Blocklist
-# Version v0.6 by alan7s
+# Version v0.7 by alan7s
 
 def cortexCheck(api, id, fqdn, blocklist, comment):
     headers = {
@@ -82,6 +82,8 @@ def main():
     parser.add_argument('-t', '--tenant', dest='tenant', required=True, help='Cortex and Lumu API tenant')
     parser.add_argument('-i', '--incident', dest='incident', required=False, help='Incident ID (LUMU Defender required)')
     parser.add_argument('-s', '--scan', dest='scan_ip', required=False, help='Initializes Malware Scan on the IP.')
+    parser.add_argument('-f', '--file', dest='file_path', required=True, help='Path to csv file.')
+    parser.add_argument('-c', '--comment', dest='comment', required=True, help='Hash description.')
 
     args = parser.parse_args()
     tenant = args.tenant
@@ -96,7 +98,7 @@ def main():
     if idLUMU:
         related_files = getLumuFiles(idLUMU,lumu_api)
     else:
-        file_path = input("Path to csv file: ")
+        file_path = args.file_path
         try:
             df = pd.read_csv(file_path)
             related_files = df[' sha256'].tolist()
@@ -108,8 +110,9 @@ def main():
     if len(listofblocklist) > 0:
         print(f'IOCs: {len(related_files)}')
         print(f'Sublists: {len(listofblocklist)}')
-        description = input("Add general description: ")
+        description = args.comment
         comment = "LUMU IOC "+ description
+        print(comment)
         logHash('hashes.txt', related_files, description)
         for i in range(len(listofblocklist)):      
             cortexCheck(cortex_api, cortex_id, cortex_fqdn, listofblocklist[i], comment)
