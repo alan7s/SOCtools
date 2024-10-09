@@ -1,5 +1,4 @@
 import socket
-import sys
 import requests
 import shodan
 import argparse
@@ -8,7 +7,7 @@ import os
 from dotenv import load_dotenv
 import time
 import re
-# Version v1.3 by alan7s
+# Version v1.4 by alan7s
 
 def abuseIPDB(ip, api_key):
     url = f'https://api.abuseipdb.com/api/v2/check?ipAddress={ip}&maxAgeInDays=90'
@@ -152,6 +151,13 @@ def cortexMalwareScan(api, id, fqdn, ip):
     response = requests.post(url, json=payload, headers=headers)
     print(response.json())
 
+def resolvDNS(ip):
+    try:
+        dnsRevolv = socket.gethostbyaddr(ip)[0]
+        print(f"[+] Address: {dnsRevolv} ({ip}).")
+    except:
+        print(f"[+] {ip} didn't resolve name.")    
+
 def banner():
     print("""
              ,-----------------------------,      
@@ -217,16 +223,13 @@ def main():
                     cortex_responder_api =  os.getenv(f"cortex_responder_api_{args.tenant}")
                     cortexMalwareScan(cortex_responder_api, cortex_responder_id, cortex_fqdn, args.local_ip)
             else:
-                try:
-                    dnsRevolv = socket.gethostbyaddr(args.local_ip)[0]
-                    print(f"Machine {dnsRevolv} ({args.local_ip}) is without Cortex.")
-                except:
-                    print(f"Machine {args.local_ip} ({args.local_ip}) didn't resolve name and is without Cortex.")
+                resolvDNS(args.local_ip)
         else:
             print("You need specified a tenant")
     if args.domain_scan and not args.bulk_scan:
         vtScan(args.domain_scan, False, virustotal_api)
     if args.remote_ip and not args.bulk_scan:
+        resolvDNS(args.remote_ip)
         vtScan(args.remote_ip, True, virustotal_api)
         abuseIPDB(args.remote_ip, abuseipdb_api)
         if not shodanScan(args.remote_ip, shodan_api):
@@ -243,6 +246,7 @@ def main():
         print(*bulk, sep=", ")
         for data in bulk:
             if re.match(ip_pattern, data):
+                resolvDNS(data)
                 vtScan(data, True, virustotal_api)
                 abuseIPDB(data, abuseipdb_api)
                 shodanScan(data, shodan_api)
