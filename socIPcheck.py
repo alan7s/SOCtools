@@ -7,7 +7,36 @@ import os
 from dotenv import load_dotenv
 import time
 import re
-# Version v1.4 by alan7s
+import xml.etree.ElementTree as ET
+# Version v1.5 by alan7s
+
+def wildfire(url,api_key):
+    url_api = f'https://wildfire.paloaltonetworks.com/publicapi/get/verdict'
+    data = {
+        'apikey': api_key,
+        'url': url
+    }
+    response = requests.post(url_api, data=data)
+    print("\n[+] Wildfire scan:\n")
+    if response.status_code == 200:
+        # Parse do XML
+        root = ET.fromstring(response.text)
+        url = root.find(".//url").text
+        verdict = int(root.find(".//verdict").text)
+        
+        verdict_map = {
+            0: "benign",
+            1: "malware",
+            2: "grayware",
+            4: "phishing",
+            5: "C2"
+        }
+        
+        verdict_text = verdict_map.get(verdict, "unknown")
+        print(f"\t. {url} flagged as {verdict_text} by Wildfire")
+    else:
+        print(f"\tFailed to fetch verdict. Status code: {response.status_code}")
+
 
 def abuseIPDB(ip, api_key):
     url = f'https://api.abuseipdb.com/api/v2/check?ipAddress={ip}&maxAgeInDays=90'
@@ -208,6 +237,7 @@ def main():
     virustotal_api = os.getenv("virustotal_api")
     shodan_api = os.getenv("shodan_api")
     abuseipdb_api = os.getenv("abuseipdb_api")
+    wildfire_api = os.getenv("wildfire_api")
 
     ip_pattern = r'^(?:(?:25[0-5]|2[0-4]\d|1?\d{1,2})(?:\.(?!$)|$)){4}$'
 
@@ -228,8 +258,8 @@ def main():
             print("You need specified a tenant")
     if args.domain_scan and not args.bulk_scan:
         vtScan(args.domain_scan, False, virustotal_api)
+        wildfire(args.domain_scan,wildfire_api)
     if args.remote_ip and not args.bulk_scan:
-        resolvDNS(args.remote_ip)
         vtScan(args.remote_ip, True, virustotal_api)
         abuseIPDB(args.remote_ip, abuseipdb_api)
         if not shodanScan(args.remote_ip, shodan_api):
@@ -246,7 +276,6 @@ def main():
         print(*bulk, sep=", ")
         for data in bulk:
             if re.match(ip_pattern, data):
-                resolvDNS(data)
                 vtScan(data, True, virustotal_api)
                 abuseIPDB(data, abuseipdb_api)
                 shodanScan(data, shodan_api)
