@@ -8,32 +8,29 @@ from dotenv import load_dotenv
 import time
 import re
 import xml.etree.ElementTree as ET
-# Version v1.5 by alan7s
+# Version v1.6 by alan7s
 
-def wildfire(url,api_key):
+def wildfire(type,ioc,api_key):
     url_api = f'https://wildfire.paloaltonetworks.com/publicapi/get/verdict'
     data = {
         'apikey': api_key,
-        'url': url
+        type: ioc
     }
     response = requests.post(url_api, data=data)
     print("\n[+] Wildfire scan:\n")
     if response.status_code == 200:
         # Parse do XML
         root = ET.fromstring(response.text)
-        url = root.find(".//url").text
         verdict = int(root.find(".//verdict").text)
-        
         verdict_map = {
             0: "benign",
             1: "malware",
             2: "grayware",
             4: "phishing",
             5: "C2"
-        }
-        
+        }        
         verdict_text = verdict_map.get(verdict, "unknown")
-        print(f"\t. {url} flagged as {verdict_text} by Wildfire")
+        print(f"\t. {ioc} flagged as {verdict_text} by Wildfire")
     else:
         print(f"\tFailed to fetch verdict. Status code: {response.status_code}")
 
@@ -56,17 +53,17 @@ def abuseIPDB(ip, api_key):
     else:
         print(f"\tFailed to fetch data. Status Code: {response.status_code}")
 
-def vtScan(ip,inpt, api):
-    if inpt:
-        url = f'https://www.virustotal.com/api/v3/ip_addresses/{ip}'
-    else:
-        url = f'https://www.virustotal.com/api/v3/domains/{ip}'
+def vtScan(ioc,type, api):
+    if type == 'ip':
+        url = f'https://www.virustotal.com/api/v3/ip_addresses/{ioc}'
+    elif type == 'domain':
+        url = f'https://www.virustotal.com/api/v3/domains/{ioc}'
     headers = {
         "accept": "application/json",
         "x-apikey": api  # Virustotal API KEY
     }
     response = requests.get(url, headers=headers)
-    print(f"\n[+] VirusTotal {'IP' if inpt else "Domain"} scan:\n")
+    print(f"\n[+] VirusTotal scan:\n")
     if response.status_code == 200:
         data = response.json()
         last_analysis_stats = data['data']['attributes']['last_analysis_stats']
@@ -76,10 +73,10 @@ def vtScan(ip,inpt, api):
         
         # Get malicious stats x/
         malicious = last_analysis_stats['malicious']
-        if inpt:
-            print(f'\t. {malicious}/{total} security vendors flagged {ip}. See https://www.virustotal.com/gui/ip-address/{ip}') # VirusTotal scan: x/y
-        else:
-            print(f'\t. {malicious}/{total} security vendors flagged {ip}. See https://www.virustotal.com/gui/domain/{ip}')
+        if type == 'ip':
+            print(f'\t. {malicious}/{total} security vendors flagged {ioc}. See https://www.virustotal.com/gui/ip-address/{ioc}') # VirusTotal scan: x/y
+        elif type == 'domain':
+            print(f'\t. {malicious}/{total} security vendors flagged {ioc}. See https://www.virustotal.com/gui/domain/{ioc}')
     else:
          print(f"Failed to fetch data. Status Code: {response.status_code}")
 
@@ -216,6 +213,7 @@ def main():
     parser.add_argument('-r', '--remote', dest='remote_ip', required=False, help='Remote IP address to scan')
     parser.add_argument('-l', '--local', dest='local_ip', required=False, help='Local IP address to check')
     parser.add_argument('-d', '--domain', dest='domain_scan', required=False, help='Domain address to scan')
+    parser.add_argument('-hs', '--hash', dest='hash_scan', required=False, help='Hash address to scan')
     parser.add_argument('-t', '--tenant', dest='tenant', required=False, help='API tenant')
     parser.add_argument('-s', '--scan', dest='scan_ip', required=False, action='store_true', help='Initiate local malware scan')
     parser.add_argument('-b', '--bulk', dest='bulk_scan', required=False, action='store_true', help='Bulk scan')
@@ -257,10 +255,12 @@ def main():
         else:
             print("You need specified a tenant")
     if args.domain_scan and not args.bulk_scan:
-        vtScan(args.domain_scan, False, virustotal_api)
-        wildfire(args.domain_scan,wildfire_api)
+        vtScan(args.domain_scan, 'domain', virustotal_api)
+        wildfire('url',args.domain_scan,wildfire_api)
+    if args.hash_scan and not args.bulk_scan:
+        wildfire('hash',args.hash_scan, wildfire_api)
     if args.remote_ip and not args.bulk_scan:
-        vtScan(args.remote_ip, True, virustotal_api)
+        vtScan(args.remote_ip, 'ip', virustotal_api)
         abuseIPDB(args.remote_ip, abuseipdb_api)
         if not shodanScan(args.remote_ip, shodan_api):
             shodanFreeScan(args.remote_ip)
