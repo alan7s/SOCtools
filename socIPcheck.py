@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import time
 import re
 import xml.etree.ElementTree as ET
-# Version v1.6 by alan7s
+# Version v1.7 by alan7s
 
 def wildfire(type,ioc,api_key):
     url_api = f'https://wildfire.paloaltonetworks.com/publicapi/get/verdict'
@@ -276,11 +276,11 @@ def main():
         print(*bulk, sep=", ")
         for data in bulk:
             if re.match(ip_pattern, data):
-                vtScan(data, True, virustotal_api)
+                vtScan(data, 'ip', virustotal_api)
                 abuseIPDB(data, abuseipdb_api)
                 shodanScan(data, shodan_api)
             else:
-                vtScan(data,False,virustotal_api)
+                vtScan(data,'domain',virustotal_api)
             time.sleep(15) #api limit 4 request per minute
 
 if __name__ == "__main__":
