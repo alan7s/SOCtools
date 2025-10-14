@@ -21,12 +21,12 @@ try:
 
         cursor = conn.cursor()
         cursor.execute('SELECT StartTime, ClipboardPayload, Payload FROM SmartLookup WHERE ClipboardPayload IS NOT NULL')
-        resultados = cursor.fetchall()
+        clipboard_history = cursor.fetchall()
         conn.close()
 
         print("----- Clipboard History -----")
 
-        for StartTime, ClipboardPayload_bytes, Payload in resultados:
+        for StartTime, ClipboardPayload_bytes, Payload in clipboard_history:
             clipboard_time_log = datetime.fromtimestamp(StartTime, tz=timezone.utc).astimezone(timezone(timedelta(hours=-3))).strftime('%Y-%m-%d %H:%M:%S')     
             try:
                 clipboard_payload_str = ClipboardPayload_bytes.decode('utf-8')
