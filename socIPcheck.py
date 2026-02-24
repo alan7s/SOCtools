@@ -1,4 +1,4 @@
-import socket
+from dns import resolver, reversename
 import requests
 import shodan
 import argparse
@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import time
 import re
 import xml.etree.ElementTree as ET
-# Version v1.7 by alan7s
+# Version v1.8 by alan7s
 
 def wildfire(type,ioc,api_key):
     url_api = f'https://wildfire.paloaltonetworks.com/publicapi/get/verdict'
@@ -177,12 +177,28 @@ def cortexMalwareScan(api, id, fqdn, ip):
     response = requests.post(url, json=payload, headers=headers)
     print(response.json())
 
-def resolvDNS(ip):
+def resolvDNS(ip, dns_server):
+    addr = reversename.from_address(ip)
+    res = resolver.Resolver()
+    res.nameservers = [dns_server]
     try:
-        dnsRevolv = socket.gethostbyaddr(ip)[0]
-        print(f"[+] Address: {dnsRevolv} ({ip}).")
+        dnsRevolv = res.resolve(addr, "PTR")[0]
+        print(f"[+] Hostname: {dnsRevolv} ({ip}).")
     except:
         print(f"[+] {ip} didn't resolve name.")    
+
+def get_ip_from_hostname(hostname, dns_server, domain):
+    hostname = f"{hostname}.{domain}"
+    res = resolver.Resolver()
+    res.nameservers = [dns_server]
+    try:
+        answers = res.resolve(hostname, "A")
+        ips = [answer.to_text() for answer in answers]
+        print(f"[+] IP addresses for {hostname}: {', '.join(ips)}.")
+        return ips
+    except:
+        print(f"[+] {hostname} didn't resolve IP.")
+        return []
 
 def banner():
     print("""
@@ -212,11 +228,12 @@ def main():
     parser = argparse.ArgumentParser(description='Scan IP address using VirusTotal, Shodan and Cortex XDR.')
     parser.add_argument('-r', '--remote', dest='remote_ip', required=False, help='Remote IP address to scan')
     parser.add_argument('-l', '--local', dest='local_ip', required=False, help='Local IP address to check')
+    parser.add_argument('-hn', '--hostname', dest='hostname_ip', required=False, help='Get hostname from IP address')
     parser.add_argument('-d', '--domain', dest='domain_scan', required=False, help='Domain address to scan')
     parser.add_argument('-hs', '--hash', dest='hash_scan', required=False, help='Hash address to scan')
     parser.add_argument('-t', '--tenant', dest='tenant', required=False, help='API tenant')
     parser.add_argument('-s', '--scan', dest='scan_ip', required=False, action='store_true', help='Initiate local malware scan')
-    parser.add_argument('-b', '--bulk', dest='bulk_scan', required=False, action='store_true', help='Bulk scan')
+    parser.add_argument('-b', '--bulk', dest='bulk_scan', required=False, action='store_true', help='Bulk remote scan')
 
     args = parser.parse_args()
 
@@ -239,6 +256,8 @@ def main():
 
     ip_pattern = r'^(?:(?:25[0-5]|2[0-4]\d|1?\d{1,2})(?:\.(?!$)|$)){4}$'
 
+    if args.hostname_ip:
+        get_ip_from_hostname(args.hostname_ip, os.getenv(f"dns_server_{args.tenant}"), os.getenv(f"dns_domain_{args.tenant}"))
     if args.local_ip:
         if args.tenant:
             cortex_api = os.getenv(f"cortex_api_{args.tenant}")
@@ -251,7 +270,7 @@ def main():
                     cortex_responder_api =  os.getenv(f"cortex_responder_api_{args.tenant}")
                     cortexMalwareScan(cortex_responder_api, cortex_responder_id, cortex_fqdn, args.local_ip)
             else:
-                resolvDNS(args.local_ip)
+                resolvDNS(args.local_ip, os.getenv(f"dns_server_{args.tenant}"))
         else:
             print("You need specified a tenant")
     if args.domain_scan and not args.bulk_scan:
